@@ -9,6 +9,8 @@ using Hangfire.SqlServer;
 
 using Microsoft.Extensions.Configuration;
 
+using NuGetGallery.Jobs.PackageEditJob;
+
 namespace NuGetGallery.Jobs
 {
     public class Startup
@@ -39,6 +41,9 @@ namespace NuGetGallery.Jobs
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+
+            services.AddInstance<IConfiguration>(this.Configuration);
+            services.AddTransient<HandlePackageEdits>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -47,11 +52,13 @@ namespace NuGetGallery.Jobs
             app.UseIISPlatformHandler();
             app.UseStaticFiles();
 
+            GlobalConfiguration.Configuration.UseActivator(new AspNetJobActivator(app.ApplicationServices));
+
             SqlServerStorage sjs = new SqlServerStorage(Configuration["Data:DefaultConnection:ConnectionString"]);
             JobStorage.Current = sjs;
             BackgroundJobServerOptions backgroundJobServerOptions = new BackgroundJobServerOptions()
             {
-                Queues = new[] { "critical", "normal", "low" }
+                Queues = new[] { "DEFAULT", "critical", "normal", "low" }
             };
             var dashboardOptions = new DashboardOptions
                                        {
@@ -61,6 +68,8 @@ namespace NuGetGallery.Jobs
 
             app.UseHangfireDashboard("/hf", dashboardOptions, sjs);
             app.UseHangfireServer(backgroundJobServerOptions, sjs);
+
+            RecurringJob.AddOrUpdate<HandlePackageEdits>(g => g.Run(), Cron.Hourly(30));
 
             app.UseMvc();
         }
