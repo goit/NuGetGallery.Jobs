@@ -14,12 +14,18 @@ using Dapper;
 
 using Microsoft.Extensions.Configuration;
 
+using NLog;
+
 using NuGet;
+
+using ILogger = NuGet.ILogger;
 
 namespace NuGetGallery.Jobs.PackageEditJob
 {
     public class HandlePackageEdits
     {
+        private static Logger Log = LogManager.GetCurrentClassLogger();
+
         private const string HashAlgorithmName = Constants.Sha512HashAlgorithmId;
 
         public static readonly string GetEditsBaseSql = @"
@@ -66,6 +72,8 @@ namespace NuGetGallery.Jobs.PackageEditJob
                 {
                     edits = connection.Query<PackageEdit>(GetEditsBaseSql).ToList();
                 }
+
+                Log.Info("Fetched {2} queued edits from {0}/{1}", PackageDatabase.DataSource, PackageDatabase.InitialCatalog, edits.Count);
 
                 // Group by package and take just the most recent edit for each package
                 edits = edits.GroupBy(e => e.PackageKey)
@@ -125,7 +133,7 @@ namespace NuGetGallery.Jobs.PackageEditJob
                     Directory.CreateDirectory(directory);
                 }
 
-                Trace.TraceInformation("Downloaded original copy of {0} {1}", edit.Id, edit.Version);
+                Log.Info("Downloaded original copy of {0} {1}", edit.Id, edit.Version);
                 File.Copy(originalPath, tempPath, true);
 
                 // Load the zip file and find the manifest
@@ -160,7 +168,7 @@ namespace NuGetGallery.Jobs.PackageEditJob
                     var manifestEntry = nuspecEntries.Single();
 
                     // Load the manifest with a constrained stream
-                    Trace.TraceInformation("Rewriting package file for {0} {1}", edit.Id, edit.Version);
+                    Log.Info("Rewriting package file for {0} {1}", edit.Id, edit.Version);
                     using (var manifestStream = manifestEntry.Open())
                     {
                         var manifest = Manifest.ReadFrom(manifestStream, validateSchema: false);
@@ -174,11 +182,11 @@ namespace NuGetGallery.Jobs.PackageEditJob
                         manifest.Save(manifestStream);
                     }
 
-                    Trace.TraceInformation("Rewrote package file for {0} {1}", edit.Id, edit.Version);
+                    Log.Info("Rewrote package file for {0} {1}", edit.Id, edit.Version);
                 }
 
                 // replace original file and back it up
-                Trace.TraceInformation("Replacing original package file for {0} {1} ({2}, backup location {3}).", edit.Id, edit.Version, originalPath, backupPath);
+                Log.Info("Replacing original package file for {0} {1} ({2}, backup location {3}).", edit.Id, edit.Version, originalPath, backupPath);
                 File.Replace(tempPath, originalPath, backupPath);
 
                 // Calculate new size and hash
@@ -198,7 +206,7 @@ namespace NuGetGallery.Jobs.PackageEditJob
                 }
 
                 // Update the database
-                Trace.TraceInformation("Updating package record for {0} {1}", edit.Id, edit.Version);
+                Log.Info("Updating package record for {0} {1}", edit.Id, edit.Version);
                 using (var connection = this.PackageDatabase.ConnectTo())
                 {
                     var parameters =
@@ -300,11 +308,11 @@ namespace NuGetGallery.Jobs.PackageEditJob
                                 COMMIT TRANSACTION", parameters);
                 }
 
-                Trace.TraceInformation("Updated package record for {0} {1}", edit.Id, edit.Version);
+                Log.Info("Updated package record for {0} {1}", edit.Id, edit.Version);
             }
             catch (Exception ex)
             {
-                Trace.TraceError("Failed to update package information. Package {0} {1}. Exception {2}", edit.Id, edit.Version, ex.Message);
+                Log.Error("Failed to update package information. Package {0} {1}. Exception {2}", edit.Id, edit.Version, ex.Message);
                 throw;
             }
             finally

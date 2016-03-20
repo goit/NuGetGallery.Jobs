@@ -8,6 +8,9 @@ using Hangfire;
 using Hangfire.SqlServer;
 
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+
+using NLog.Extensions.Logging;
 
 using NuGetGallery.Jobs.PackageEditJob;
 
@@ -15,10 +18,12 @@ namespace NuGetGallery.Jobs
 {
     public class Startup
     {
-        public Startup(IHostingEnvironment env)
+        public Startup(IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
-            // Setup configuration sources.
+            loggerFactory.AddNLog();
+            env.ConfigureNLog("NLog.config");
 
+            // Setup configuration sources.
             var builder = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
                 .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true);

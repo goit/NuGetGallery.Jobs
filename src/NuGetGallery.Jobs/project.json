@@ -11,6 +11,8 @@
     "Microsoft.AspNet.Server.Kestrel": "1.0.0-rc1-final",
     "Hangfire": "1.5.3",
     "Hangfire.SqlServer": "1.5.3",
+    "NLog": "4.4.0-*",
+    "NLog.Extensions.Logging": "1.0.0-rc1-final-*",
     "Microsoft.AspNet.Owin": "1.0.0-rc1-final",
     "Microsoft.AspNet.StaticFiles": "1.0.0-rc1-final",
     "Microsoft.AspNet.Mvc.Core": "6.0.0-rc1-final",
